@@ -1,0 +1,143 @@
+\documentclass[11pt]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,bm}
+\usepackage{mathtools}
+\usepackage{microtype}
+
+\title{Linear--Gaussian Bayesian Update \\ (Kalman Measurement Update)}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+
+\section*{Setup}
+Let the state be $x\in\mathbb{R}^n$ and the measurement be $y\in\mathbb{R}^p$.
+
+\paragraph{Prior.}
+Assume a Gaussian prior distribution
+\begin{equation}
+p(x)=\mathcal{N}(x;\hat{x}',P'),
+\end{equation}
+where $\hat{x}'\in\mathbb{R}^n$ is the prior mean and $P'\in\mathbb{R}^{n\times n}$ is the prior covariance ($P'\succ 0$).
+
+\paragraph{Measurement model.}
+Assume the linear sensor model
+\begin{equation}
+y = Cx + v,\qquad v\sim\mathcal{N}(0,Q),
+\end{equation}
+where $C\in\mathbb{R}^{p\times n}$ and $Q\in\mathbb{R}^{p\times p}$ is the measurement-noise covariance ($Q\succ 0$).
+
+\paragraph{Likelihood.}
+Conditioning on $x$, we have $y\mid x = Cx+v$, hence
+\begin{equation}
+p(y\mid x)=\mathcal{N}(y;Cx,Q)
+\;\propto\;
+\exp\!\Big(-\tfrac12 (y-Cx)^\top Q^{-1}(y-Cx)\Big).
+\end{equation}
+
+\section*{Bayesian Update}
+By Bayes' rule,
+\begin{equation}
+p(x\mid y)\propto p(y\mid x)\,p(x).
+\end{equation}
+Taking logs and dropping constants independent of $x$,
+\begin{align}
+\log p(x\mid y)
+&=
+-\tfrac12 (x-\hat{x}')^\top (P')^{-1}(x-\hat{x}')
+-\tfrac12 (y-Cx)^\top Q^{-1}(y-Cx)
++\text{const}.
+\end{align}
+
+\section*{Complete the Square}
+Expand and collect terms in $x$.
+
+\paragraph{Prior term.}
+\begin{equation}
+(x-\hat{x}')^\top (P')^{-1}(x-\hat{x}')
+=
+x^\top (P')^{-1}x
+-2\hat{x}'^\top (P')^{-1}x
++\hat{x}'^\top (P')^{-1}\hat{x}'.
+\end{equation}
+
+\paragraph{Likelihood term.}
+\begin{equation}
+(y-Cx)^\top Q^{-1}(y-Cx)
+=
+y^\top Q^{-1}y
+-2y^\top Q^{-1}Cx
++x^\top C^\top Q^{-1}Cx.
+\end{equation}
+
+Substituting back and collecting the quadratic and linear terms in $x$ yields
+\begin{align}
+\log p(x\mid y)
+&=
+-\tfrac12 x^\top\Big((P')^{-1}+C^\top Q^{-1}C\Big)x
++x^\top\Big((P')^{-1}\hat{x}'+C^\top Q^{-1}y\Big)
++\text{const}.
+\end{align}
+
+A Gaussian in canonical form satisfies
+\begin{equation}
+-\tfrac12 (x-\hat{x})^\top P^{-1}(x-\hat{x})
+=
+-\tfrac12 x^\top P^{-1}x + x^\top P^{-1}\hat{x} + \text{const}.
+\end{equation}
+Matching coefficients gives the posterior covariance and mean.
+
+\section*{Posterior Covariance (Information Form)}
+\begin{equation}
+\boxed{
+P^{-1} = (P')^{-1} + C^\top Q^{-1}C.
+}
+\end{equation}
+
+\section*{Posterior Mean}
+From the linear term,
+\begin{equation}
+P^{-1}\hat{x} = (P')^{-1}\hat{x}' + C^\top Q^{-1}y,
+\end{equation}
+hence
+\begin{equation}
+\boxed{
+\hat{x} = P\Big((P')^{-1}\hat{x}' + C^\top Q^{-1}y\Big).
+}
+\end{equation}
+Equivalently, rearranging into the \emph{innovation} form:
+\begin{align}
+\hat{x}
+&= \hat{x}' + P C^\top Q^{-1}(y-C\hat{x}').
+\end{align}
+
+\section*{Kalman Gain Form}
+Define the gain
+\begin{equation}
+\boxed{
+K \triangleq P C^\top Q^{-1}.
+}
+\end{equation}
+Then the posterior mean update is
+\begin{equation}
+\boxed{
+\hat{x} = \hat{x}' + K\big(y - C\hat{x}'\big).
+}
+\end{equation}
+
+\section*{Notes}
+\begin{itemize}
+\item The quantity $r \triangleq y-C\hat{x}'$ is called the \emph{innovation} or \emph{residual}.
+\item The update above is the closed-form Bayesian posterior for a Gaussian prior and linear measurement with Gaussian noise.
+\item If you prefer the more common gain expression, combine $P^{-1}=(P')^{-1}+C^\top Q^{-1}C$ with matrix identities to obtain
+\[
+K = P' C^\top (C P' C^\top + Q)^{-1},
+\qquad
+P = (I-KC)P'(I-KC)^\top + KQK^\top,
+\]
+which is algebraically equivalent.
+\end{itemize}
+
+\end{document}

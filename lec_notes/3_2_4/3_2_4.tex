@@ -1,0 +1,468 @@
+\documentclass[11pt]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{mathtools}
+\usepackage{hyperref}
+
+\title{Section 3.2.4: Batch (Way A) and Sequential (Way B) Derivations}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+
+\section{Problem Setup}
+
+We measure the same unknown scalar $x$ repeatedly. For $i=1,\dots,k$,
+\begin{equation}
+y_i = x + \nu_i,\qquad \nu_i \sim \mathcal N(0,1),
+\end{equation}
+with $\{\nu_i\}$ independent. After $k$ measurements, we will derive the estimate $\hat x_k$ and its variance $\mathrm{Var}(\hat x_k)$ in two ways:
+\begin{itemize}
+  \item \textbf{Way A (Batch):} stack all measurements and solve once.
+  \item \textbf{Way B (Sequential):} update $(\hat x_k, P_k)$ recursively when a new measurement arrives.
+\end{itemize}
+
+\section{Way A: Batch (All-at-Once) Derivation}
+
+\subsection{Step 1: Stack measurements into a single linear system}
+
+Define
+\begin{equation}
+y \triangleq
+\begin{bmatrix}
+y_1\\ \vdots\\ y_k
+\end{bmatrix}\in\mathbb R^{k\times 1},\qquad
+\nu \triangleq
+\begin{bmatrix}
+\nu_1\\ \vdots\\ \nu_k
+\end{bmatrix}\in\mathbb R^{k\times 1},\qquad
+C \triangleq
+\begin{bmatrix}
+1\\ \vdots\\ 1
+\end{bmatrix}\in\mathbb R^{k\times 1}.
+\end{equation}
+Then all $k$ scalar equations can be written compactly as
+\begin{equation}
+y = Cx + \nu.
+\end{equation}
+Since each $\nu_i\sim\mathcal N(0,1)$ and they are independent,
+\begin{equation}
+\nu \sim \mathcal N(0, I_k).
+\end{equation}
+
+\subsection{Step 2: Write the likelihood and the least-squares objective}
+
+Given $x$, the measurement vector $y$ is Gaussian:
+\begin{equation}
+p(y\mid x) = \mathcal N(Cx, I_k).
+\end{equation}
+Up to an additive constant independent of $x$, the negative log-likelihood is
+\begin{equation}
+-\log p(y\mid x) = \tfrac12 (y-Cx)^\top I_k^{-1}(y-Cx)
+= \tfrac12 \|y-Cx\|^2.
+\end{equation}
+Thus maximizing likelihood is equivalent to minimizing the least-squares cost
+\begin{equation}
+J(x) \triangleq \|y-Cx\|^2.
+\end{equation}
+
+\subsection{Step 3: Solve the least-squares problem (normal equations)}
+
+Expand $J(x)$:
+\begin{align}
+J(x)
+&= (y-Cx)^\top(y-Cx) \\
+&= y^\top y - 2x\, C^\top y + x^2\, C^\top C.
+\end{align}
+Differentiate with respect to the scalar $x$ and set to zero:
+\begin{equation}
+\frac{dJ}{dx} = -2 C^\top y + 2x\, C^\top C = 0
+\quad\Longrightarrow\quad
+\hat x_k = (C^\top C)^{-1} C^\top y.
+\end{equation}
+Now plug in the special $C=\mathbf 1_k$:
+\begin{equation}
+C^\top C = \mathbf 1_k^\top \mathbf 1_k = k,\qquad
+C^\top y = \sum_{i=1}^k y_i.
+\end{equation}
+Hence
+\begin{equation}
+\boxed{\hat x_k = \frac{1}{k}\sum_{i=1}^k y_i.}
+\end{equation}
+
+\subsection{Step 4: Derive the variance of the batch estimate}
+
+Start from
+\begin{align}
+\hat x_k
+&= (C^\top C)^{-1}C^\top y \\
+&= (C^\top C)^{-1}C^\top(Cx+\nu) \\
+&= x + (C^\top C)^{-1}C^\top \nu.
+\end{align}
+Therefore the estimation error is
+\begin{equation}
+\tilde x_k \triangleq \hat x_k - x = (C^\top C)^{-1}C^\top \nu.
+\end{equation}
+Compute its variance:
+\begin{align}
+\mathrm{Var}(\hat x_k)
+&= \mathrm{Var}(\tilde x_k) \\
+&= (C^\top C)^{-1} C^\top \,\mathrm{Cov}(\nu)\, C\, (C^\top C)^{-1}.
+\end{align}
+Since $\mathrm{Cov}(\nu)=I_k$,
+\begin{equation}
+\mathrm{Var}(\hat x_k)
+= (C^\top C)^{-1} C^\top I_k C (C^\top C)^{-1}
+= (C^\top C)^{-1}.
+\end{equation}
+And because $C^\top C = k$,
+\begin{equation}
+\boxed{\mathrm{Var}(\hat x_k)=\frac{1}{k}.}
+\end{equation}
+
+\section{Way B: Sequential (Recursive) Derivation}
+
+\subsection{Step 0: Treat the first $k$ measurements as a Gaussian prior}
+
+From Way A, after $k$ unit-variance measurements,
+\begin{equation}
+\hat x_k = \frac{1}{k}\sum_{i=1}^k y_i,\qquad
+P_k \triangleq \mathrm{Var}(\hat x_k)=\frac{1}{k}.
+\end{equation}
+Interpret this as a prior distribution for $x$ conditioned on the first $k$ measurements:
+\begin{equation}
+x\mid y_{1:k} \sim \mathcal N(\hat x_k, P_k).
+\end{equation}
+
+Now obtain one more measurement
+\begin{equation}
+y_{k+1} = x + \nu_{k+1},\qquad \nu_{k+1}\sim \mathcal N(0,\sigma^2),
+\end{equation}
+independent of everything else.
+
+\subsection{Step 1: Posterior is proportional to prior times likelihood}
+
+Prior:
+\begin{equation}
+p(x\mid y_{1:k}) \propto \exp\!\left(-\frac{1}{2P_k}(x-\hat x_k)^2\right).
+\end{equation}
+Likelihood:
+\begin{equation}
+p(y_{k+1}\mid x) \propto \exp\!\left(-\frac{1}{2\sigma^2}(y_{k+1}-x)^2\right).
+\end{equation}
+Multiply:
+\begin{equation}
+p(x\mid y_{1:k+1}) \propto
+\exp\!\left(
+-\frac{1}{2P_k}(x-\hat x_k)^2
+-\frac{1}{2\sigma^2}(y_{k+1}-x)^2
+\right).
+\end{equation}
+This exponent is quadratic in $x$, so the posterior is Gaussian.
+
+\subsection{Step 2: Expand and collect terms in $x$}
+
+Expand:
+\begin{equation}
+(x-\hat x_k)^2 = x^2 - 2\hat x_k x + \hat x_k^2,
+\qquad
+(y_{k+1}-x)^2 = x^2 - 2y_{k+1}x + y_{k+1}^2.
+\end{equation}
+Ignoring constants independent of $x$, the exponent becomes
+\begin{equation}
+-\frac12\left[
+\left(\frac{1}{P_k}+\frac{1}{\sigma^2}\right)x^2
+-2\left(\frac{\hat x_k}{P_k}+\frac{y_{k+1}}{\sigma^2}\right)x
+\right] + \text{const}.
+\end{equation}
+Match this with the canonical Gaussian form
+\begin{equation}
+-\frac12\left[
+\frac{1}{P_{k+1}}x^2
+-2\frac{\hat x_{k+1}}{P_{k+1}}x
+\right] + \text{const}.
+\end{equation}
+
+\subsection{Step 3: Read off the variance update (information form)}
+
+Matching $x^2$ coefficients yields
+\begin{equation}
+\boxed{\frac{1}{P_{k+1}}=\frac{1}{P_k}+\frac{1}{\sigma^2}.}
+\end{equation}
+Since $P_k = 1/k$, we have $1/P_k = k$, so
+\begin{equation}
+\frac{1}{P_{k+1}} = k + \frac{1}{\sigma^2}
+\quad\Longrightarrow\quad
+\boxed{P_{k+1}=\frac{1}{k+\frac{1}{\sigma^2}}=\frac{\sigma^2}{\sigma^2 k + 1}.}
+\end{equation}
+
+\subsection{Step 4: Read off the mean update}
+
+Matching linear coefficients yields
+\begin{equation}
+\boxed{\frac{\hat x_{k+1}}{P_{k+1}}=\frac{\hat x_k}{P_k}+\frac{y_{k+1}}{\sigma^2}.}
+\end{equation}
+Thus
+\begin{equation}
+\hat x_{k+1}
+= P_{k+1}\left(\frac{\hat x_k}{P_k}+\frac{y_{k+1}}{\sigma^2}\right).
+\end{equation}
+Using $1/P_k = k$ and $P_{k+1} = \frac{1}{k+1/\sigma^2}$,
+\begin{equation}
+\hat x_{k+1}
+= \frac{1}{k+\frac{1}{\sigma^2}}\left(k\hat x_k + \frac{1}{\sigma^2}y_{k+1}\right).
+\end{equation}
+This shows $\hat x_{k+1}$ is a weighted average of $\hat x_k$ and $y_{k+1}$, weighted by their precisions.
+
+\subsection{Step 5: Convert to innovation form}
+
+Subtract $\hat x_k$:
+\begin{align}
+\hat x_{k+1}-\hat x_k
+&= \frac{k\hat x_k + \frac{1}{\sigma^2}y_{k+1} - \hat x_k\left(k+\frac{1}{\sigma^2}\right)}{k+\frac{1}{\sigma^2}} \\
+&= \frac{\frac{1}{\sigma^2}(y_{k+1}-\hat x_k)}{k+\frac{1}{\sigma^2}} \\
+&= \frac{y_{k+1}-\hat x_k}{\sigma^2 k + 1},
+\end{align}
+where the last step multiplies numerator and denominator by $\sigma^2$.
+Therefore
+\begin{equation}
+\boxed{\hat x_{k+1}=\hat x_k + \frac{y_{k+1}-\hat x_k}{\sigma^2 k + 1}.}
+\end{equation}
+
+\end{document}
+\documentclass[11pt]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{mathtools}
+\usepackage{hyperref}
+
+\title{Section 3.2.4: Batch (Way A) and Sequential (Way B) Derivations}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+
+\section{Problem Setup}
+
+We measure the same unknown scalar $x$ repeatedly. For $i=1,\dots,k$,
+\begin{equation}
+y_i = x + \nu_i,\qquad \nu_i \sim \mathcal N(0,1),
+\end{equation}
+with $\{\nu_i\}$ independent. After $k$ measurements, we will derive the estimate $\hat x_k$ and its variance $\mathrm{Var}(\hat x_k)$ in two ways:
+\begin{itemize}
+  \item \textbf{Way A (Batch):} stack all measurements and solve once.
+  \item \textbf{Way B (Sequential):} update $(\hat x_k, P_k)$ recursively when a new measurement arrives.
+\end{itemize}
+
+\section{Way A: Batch (All-at-Once) Derivation}
+
+\subsection{Step 1: Stack measurements into a single linear system}
+
+Define
+\begin{equation}
+y \triangleq
+\begin{bmatrix}
+y_1\\ \vdots\\ y_k
+\end{bmatrix}\in\mathbb R^{k\times 1},\qquad
+\nu \triangleq
+\begin{bmatrix}
+\nu_1\\ \vdots\\ \nu_k
+\end{bmatrix}\in\mathbb R^{k\times 1},\qquad
+C \triangleq
+\begin{bmatrix}
+1\\ \vdots\\ 1
+\end{bmatrix}\in\mathbb R^{k\times 1}.
+\end{equation}
+Then all $k$ scalar equations can be written compactly as
+\begin{equation}
+y = Cx + \nu.
+\end{equation}
+Since each $\nu_i\sim\mathcal N(0,1)$ and they are independent,
+\begin{equation}
+\nu \sim \mathcal N(0, I_k).
+\end{equation}
+
+\subsection{Step 2: Write the likelihood and the least-squares objective}
+
+Given $x$, the measurement vector $y$ is Gaussian:
+\begin{equation}
+p(y\mid x) = \mathcal N(Cx, I_k).
+\end{equation}
+Up to an additive constant independent of $x$, the negative log-likelihood is
+\begin{equation}
+-\log p(y\mid x) = \tfrac12 (y-Cx)^\top I_k^{-1}(y-Cx)
+= \tfrac12 \|y-Cx\|^2.
+\end{equation}
+Thus maximizing likelihood is equivalent to minimizing the least-squares cost
+\begin{equation}
+J(x) \triangleq \|y-Cx\|^2.
+\end{equation}
+
+\subsection{Step 3: Solve the least-squares problem (normal equations)}
+
+Expand $J(x)$:
+\begin{align}
+J(x)
+&= (y-Cx)^\top(y-Cx) \\
+&= y^\top y - 2x\, C^\top y + x^2\, C^\top C.
+\end{align}
+Differentiate with respect to the scalar $x$ and set to zero:
+\begin{equation}
+\frac{dJ}{dx} = -2 C^\top y + 2x\, C^\top C = 0
+\quad\Longrightarrow\quad
+\hat x_k = (C^\top C)^{-1} C^\top y.
+\end{equation}
+Now plug in the special $C=\mathbf 1_k$:
+\begin{equation}
+C^\top C = \mathbf 1_k^\top \mathbf 1_k = k,\qquad
+C^\top y = \sum_{i=1}^k y_i.
+\end{equation}
+Hence
+\begin{equation}
+\boxed{\hat x_k = \frac{1}{k}\sum_{i=1}^k y_i.}
+\end{equation}
+
+\subsection{Step 4: Derive the variance of the batch estimate}
+
+Start from
+\begin{align}
+\hat x_k
+&= (C^\top C)^{-1}C^\top y \\
+&= (C^\top C)^{-1}C^\top(Cx+\nu) \\
+&= x + (C^\top C)^{-1}C^\top \nu.
+\end{align}
+Therefore the estimation error is
+\begin{equation}
+\tilde x_k \triangleq \hat x_k - x = (C^\top C)^{-1}C^\top \nu.
+\end{equation}
+Compute its variance:
+\begin{align}
+\mathrm{Var}(\hat x_k)
+&= \mathrm{Var}(\tilde x_k) \\
+&= (C^\top C)^{-1} C^\top \,\mathrm{Cov}(\nu)\, C\, (C^\top C)^{-1}.
+\end{align}
+Since $\mathrm{Cov}(\nu)=I_k$,
+\begin{equation}
+\mathrm{Var}(\hat x_k)
+= (C^\top C)^{-1} C^\top I_k C (C^\top C)^{-1}
+= (C^\top C)^{-1}.
+\end{equation}
+And because $C^\top C = k$,
+\begin{equation}
+\boxed{\mathrm{Var}(\hat x_k)=\frac{1}{k}.}
+\end{equation}
+
+\section{Way B: Sequential (Recursive) Derivation}
+
+\subsection{Step 0: Treat the first $k$ measurements as a Gaussian prior}
+
+From Way A, after $k$ unit-variance measurements,
+\begin{equation}
+\hat x_k = \frac{1}{k}\sum_{i=1}^k y_i,\qquad
+P_k \triangleq \mathrm{Var}(\hat x_k)=\frac{1}{k}.
+\end{equation}
+Interpret this as a prior distribution for $x$ conditioned on the first $k$ measurements:
+\begin{equation}
+x\mid y_{1:k} \sim \mathcal N(\hat x_k, P_k).
+\end{equation}
+
+Now obtain one more measurement
+\begin{equation}
+y_{k+1} = x + \nu_{k+1},\qquad \nu_{k+1}\sim \mathcal N(0,\sigma^2),
+\end{equation}
+independent of everything else.
+
+\subsection{Step 1: Posterior is proportional to prior times likelihood}
+
+Prior:
+\begin{equation}
+p(x\mid y_{1:k}) \propto \exp\!\left(-\frac{1}{2P_k}(x-\hat x_k)^2\right).
+\end{equation}
+Likelihood:
+\begin{equation}
+p(y_{k+1}\mid x) \propto \exp\!\left(-\frac{1}{2\sigma^2}(y_{k+1}-x)^2\right).
+\end{equation}
+Multiply:
+\begin{equation}
+p(x\mid y_{1:k+1}) \propto
+\exp\!\left(
+-\frac{1}{2P_k}(x-\hat x_k)^2
+-\frac{1}{2\sigma^2}(y_{k+1}-x)^2
+\right).
+\end{equation}
+This exponent is quadratic in $x$, so the posterior is Gaussian.
+
+\subsection{Step 2: Expand and collect terms in $x$}
+
+Expand:
+\begin{equation}
+(x-\hat x_k)^2 = x^2 - 2\hat x_k x + \hat x_k^2,
+\qquad
+(y_{k+1}-x)^2 = x^2 - 2y_{k+1}x + y_{k+1}^2.
+\end{equation}
+Ignoring constants independent of $x$, the exponent becomes
+\begin{equation}
+-\frac12\left[
+\left(\frac{1}{P_k}+\frac{1}{\sigma^2}\right)x^2
+-2\left(\frac{\hat x_k}{P_k}+\frac{y_{k+1}}{\sigma^2}\right)x
+\right] + \text{const}.
+\end{equation}
+Match this with the canonical Gaussian form
+\begin{equation}
+-\frac12\left[
+\frac{1}{P_{k+1}}x^2
+-2\frac{\hat x_{k+1}}{P_{k+1}}x
+\right] + \text{const}.
+\end{equation}
+
+\subsection{Step 3: Read off the variance update (information form)}
+
+Matching $x^2$ coefficients yields
+\begin{equation}
+\boxed{\frac{1}{P_{k+1}}=\frac{1}{P_k}+\frac{1}{\sigma^2}.}
+\end{equation}
+Since $P_k = 1/k$, we have $1/P_k = k$, so
+\begin{equation}
+\frac{1}{P_{k+1}} = k + \frac{1}{\sigma^2}
+\quad\Longrightarrow\quad
+\boxed{P_{k+1}=\frac{1}{k+\frac{1}{\sigma^2}}=\frac{\sigma^2}{\sigma^2 k + 1}.}
+\end{equation}
+
+\subsection{Step 4: Read off the mean update}
+
+Matching linear coefficients yields
+\begin{equation}
+\boxed{\frac{\hat x_{k+1}}{P_{k+1}}=\frac{\hat x_k}{P_k}+\frac{y_{k+1}}{\sigma^2}.}
+\end{equation}
+Thus
+\begin{equation}
+\hat x_{k+1}
+= P_{k+1}\left(\frac{\hat x_k}{P_k}+\frac{y_{k+1}}{\sigma^2}\right).
+\end{equation}
+Using $1/P_k = k$ and $P_{k+1} = \frac{1}{k+1/\sigma^2}$,
+\begin{equation}
+\hat x_{k+1}
+= \frac{1}{k+\frac{1}{\sigma^2}}\left(k\hat x_k + \frac{1}{\sigma^2}y_{k+1}\right).
+\end{equation}
+This shows $\hat x_{k+1}$ is a weighted average of $\hat x_k$ and $y_{k+1}$, weighted by their precisions.
+
+\subsection{Step 5: Convert to innovation form}
+
+Subtract $\hat x_k$:
+\begin{align}
+\hat x_{k+1}-\hat x_k
+&= \frac{k\hat x_k + \frac{1}{\sigma^2}y_{k+1} - \hat x_k\left(k+\frac{1}{\sigma^2}\right)}{k+\frac{1}{\sigma^2}} \\
+&= \frac{\frac{1}{\sigma^2}(y_{k+1}-\hat x_k)}{k+\frac{1}{\sigma^2}} \\
+&= \frac{y_{k+1}-\hat x_k}{\sigma^2 k + 1},
+\end{align}
+where the last step multiplies numerator and denominator by $\sigma^2$.
+Therefore
+\begin{equation}
+\boxed{\hat x_{k+1}=\hat x_k + \frac{y_{k+1}-\hat x_k}{\sigma^2 k + 1}.}
+\end{equation}
+
+\end{document}
