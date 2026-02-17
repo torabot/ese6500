@@ -25,7 +25,7 @@ class HMM():
 
     def backward(self):
         beta = np.zeros((self.horizon, self.num_states))
-        beta[self.horizon - 1, :] = np.ones(self.num_states) # initialization
+        beta[self.horizon - 1, :] = np.ones(self.num_states)
 
         for k in range(self.horizon - 2, -1, -1):
             beta[k, :] = self.Transition @ (beta[k+1, :] * self.Emission[:, self.Observations[k+1]])
@@ -58,7 +58,7 @@ class HMM():
     def update(self, alpha, beta, gamma, xi):
 
         new_init_state = gamma[0, :]
-        T_prime = np.sum(xi[:-1, :, :], axis=0) / np.sum(gamma[:-1, :], axis=0).reshape(-1, 1)
+        T_prime = np.sum(xi, axis=0) / np.sum(gamma[:-1, :], axis=0).reshape(-1, 1)
 
         M_prime = np.zeros((self.num_states, self.num_obs))
         for k in range(self.horizon):
@@ -72,7 +72,11 @@ class HMM():
     def trajectory_probability(self, alpha, beta, T_prime, M_prime, new_init_state):
 
         P_original = np.sum(alpha[-1, :])
-        P_prime = np.sum(beta[0, :]) @ new_init_state @ M_prime[:, self.Observations[0]]
 
+        alpha_prime = np.zeros_like(alpha)
+        alpha_prime[0, :] = new_init_state * M_prime[:, self.Observations[0]]
+        for k in range(self.horizon - 1):
+            alpha_prime[k+1, :] = (alpha_prime[k, :] @ T_prime) * M_prime[:, self.Observations[k+1]]
+        P_prime = np.sum(alpha_prime[-1, :])
 
         return P_original, P_prime
