@@ -1,9 +1,9 @@
 import numpy as np
+from matplotlib import pyplot as plt
 from datetime import datetime
 
 def ekf(a_bar_init, x_bar_init, Sigma_init, y, R = 1.0, Q = 0.5):
-
-    mu_k_given_k = np.array([x_bar_init, a_bar_init])
+    mu_k_given_k = np.array([float(x_bar_init[0]), float(a_bar_init)])
     Sigma_k_given_k = Sigma_init
 
     x_bar_k_given_k = mu_k_given_k[0]
@@ -28,7 +28,6 @@ def ekf(a_bar_init, x_bar_init, Sigma_init, y, R = 1.0, Q = 0.5):
         g_of_mu_kp1_given_k = np.sqrt(x_bar_kp1_given_k**2.0 + 1.0)
 
         K = Sigma_kp1_given_k @ C.T / (C @ Sigma_kp1_given_k @ C.T + Q)
-
         mu_kp1_given_kp1 = mu_kp1_given_k + K * (y[k]- g_of_mu_kp1_given_k)
         Sigma_kp1_given_kp1 = (np.eye(2) - np.outer(K, C)) @ Sigma_kp1_given_k
 
@@ -45,17 +44,6 @@ def ekf(a_bar_init, x_bar_init, Sigma_init, y, R = 1.0, Q = 0.5):
 
 
 def simulate_system(a, N, x0=0.0, seed=None, clip_sqrt=True, clip_min=1e-12):
-    """
-    Simulate:
-        x_{k+1} = a x_k + eps_k,   eps_k ~ N(0, 1)
-        y_k     = sqrt(x_k^2 + 1 + nu_k), nu_k ~ N(0, 0.5)
-
-    Returns:
-        x: shape (N+1,) states from x_0 ... x_N
-        y: shape (N,)   measurements y_0 ... y_{N-1}
-        eps: shape (N,) process noise samples
-        nu: shape (N,)  measurement noise samples
-    """
     rng = np.random.default_rng(seed)
 
     # Noise samples
@@ -99,5 +87,35 @@ if __name__ == "__main__":
 # Part b)
     print("===========================================================")
     print("Part b)")
-    a_bar_init = 0.0
+    a_bar_init = -20.0
+    Sigma_init = np.eye(2) * 100.0
+    a_means, a_vars = ekf(a_bar_init, x0, Sigma_init, y)
 
+    print(f"a_means: {a_means}")
+    print("\n")
+    print(f"a_vars: {a_vars}")
+
+    plt.figure()
+    t = np.arange(N)
+    a_std = np.sqrt(a_vars)
+    plt.errorbar(
+        t,
+        a_means,
+        yerr=a_std,
+        fmt='o',
+        linestyle='none',
+        color='green',
+        ecolor='purple',
+        elinewidth=0.8,
+        capsize=2,
+        markersize=3,
+        label='estimate +/- 1 sigma'
+    )
+    plt.xlabel('Time Step')
+    plt.ylabel('a values')
+    plt.title(fr"Estimates of $a$ Over Time Steps with $\hat{{a}}_{{0 \mid 0}} = {a_bar_init:.2f}$")
+    plt.legend()
+    plt.grid(True)
+    plt.show()
+
+    
