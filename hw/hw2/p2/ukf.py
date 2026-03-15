@@ -19,7 +19,7 @@ def process_model(q, omega, dt):
     dq = quat_from_rotvec(rotvec)
 
     q_next = q.__mul__(dq)
-    q_next = q_next.normalize()
+    q_next.normalize()
 
     omega_next = omega.copy()
 
@@ -41,7 +41,7 @@ def compute_sigma_points(q_mean, omega_mean, Sigma, Q_proc):
             omega_W = Wi[3:]
 
             q_sigma = q_mean.__mul__(q_W)
-            q_sigma = q_sigma.normalize()
+            q_sigma.normalize()
 
             omega_sigma = omega_mean + omega_W
 
@@ -76,7 +76,7 @@ def quaternion_mean_and_covariance(X, q_bar, tol=1e-6, max_iters=100):
         e_mean.from_axis_angle(e_mean_vec)
 
         q_bar = e_mean * q_bar
-        q_bar = q_bar.normalize()
+        q_bar.normalize()
 
     E = np.zeros((3, num_sigma))
 
@@ -104,7 +104,7 @@ def quaternion_mean_and_covariance(X, q_bar, tol=1e-6, max_iters=100):
 
 def predict_step(mu_km1, Sigma_km1, Q_proc, dt):
     q_km1 = Quaternion(mu_km1[0], mu_km1[1:4])
-    q_km1 = q_km1.normalize()
+    q_km1.normalize()
     omega_km1 = mu_km1[4:7]
 
     X = compute_sigma_points(q_km1, omega_km1, Sigma_km1, Q_proc)
@@ -112,7 +112,7 @@ def predict_step(mu_km1, Sigma_km1, Q_proc, dt):
     Y = np.zeros_like(X)
     for i in range(X.shape[0]):
         q_i = Quaternion(X[i, 0], X[i, 1:4])
-        q_i = q_i.normalize()
+        q_i.normalize()
         omega_i = X[i, 4:7]
 
         Y[i, :] = process_model(q_i, omega_i, dt)
@@ -133,7 +133,7 @@ def obs_step(Y, mu_pred, Q_meas):
     n = num_sigma // 2
 
     q_bar_t = Quaternion(mu_pred[0], mu_pred[1:4])
-    q_bar_t = q_bar_t.normalize()
+    q_bar_t.normalize()
     omega_k = mu_pred[4:7]
 
     Z = np.zeros((num_sigma, 6))
@@ -142,7 +142,7 @@ def obs_step(Y, mu_pred, Q_meas):
 
     for i in range(num_sigma):
         q_i = Quaternion(Y[i, 0], Y[i, 1:4])
-        q_i = q_i.normalize()
+        q_i.normalize()
         omega_i = Y[i, 4:7]
 
         Z[i, :] = measurement_model(q_i, omega_i)
@@ -150,7 +150,7 @@ def obs_step(Y, mu_pred, Q_meas):
         e_i = q_i.__mul__(q_bar_t.inv())
         if e_i.q[0] < 0:
             e_i.q = -e_i.q
-        e_rot[i] = e_i.axis_angle().reshape(3,)
+        e_rot[:,i] = e_i.axis_angle().reshape(3,)
         Wprime[:, i] = np.hstack([e_rot[:,i], omega_i - omega_k])
 
     y_hat = np.mean(Z, axis=0)
@@ -176,7 +176,14 @@ def obs_step(Y, mu_pred, Q_meas):
 def belief(mu_pred, Sigma_pred, Sigma_xy, Sigma_yy, y, y_hat):
     innovation = y - y_hat
     K = Sigma_xy @ np.linalg.inv(Sigma_yy)
-    mu_bel = mu_pred + K @ innovation
+    dx = K @ innovation
+    dq = quat_from_rotvec(dx[:3])
+    q_bar = Quaternion(mu_pred[0], mu_pred[1:4])
+    q_bar.normalize()
+    q_bel = q_bar.__mul__(dq)
+    q_bel.normalize()
+
+    mu_bel = np.hstack([q_bel.q, mu_pred[4:] + dx[3:]])
     Sigma_bel = Sigma_pred - K @ Sigma_yy @ K.T
 
     return mu_bel, Sigma_bel
@@ -189,7 +196,7 @@ def ukf(euler_angle_init, omega_init, Sigma_init, accel_data, gyro_data, Q_proc=
     mu_km1 = np.hstack([q_km1.q, omega_init])
     Sigma_km1  = Sigma_init
 
-    y = np.hstack(accel_data, gyro_data)
+    y = np.hstack((accel_data, gyro_data))
 
     mu_pred, Sigma_pred, Y = predict_step(mu_km1, Sigma_km1, Q_proc, dt)
     y_hat, Sigma_xy, Sigma_yy, Z = obs_step(Y, mu_pred, Q_meas)
